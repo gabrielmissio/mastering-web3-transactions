@@ -1,0 +1,14 @@
+{
+  "name": "mastering-web3-transactions",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.29.0",
+    "@eslint/markdown": "^6.5.0",
+    "eslint": "^9.29.0",
+    "globals": "^16.2.0"
+  }
+}
