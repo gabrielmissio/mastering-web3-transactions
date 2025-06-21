@@ -13,7 +13,7 @@ export async function createRandomEOA() {
 export async function signHashFromPrivateKey(privateKey, digest) {
     const key = new SigningKey(privateKey);
     const { r, s, v } = key.sign(getBytes(digest));
-    return { r, s, recovery: v };
+    return { r, s, v, recovery: v - 27 }; // recovery will be 0 or 1
 }
 
 export function hashFrom(data) {

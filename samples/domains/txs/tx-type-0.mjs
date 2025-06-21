@@ -3,51 +3,80 @@
     This is the first transaction type in the Ethereum network.
     It is the most basic and supported transaction type though it is the least efficient and has the least features.
 */
+import { toBeHex, Transaction } from 'ethers';
 import { getCurrentNonce } from '../../shared/nonce-manager.mjs';
+import { getNetworkInfo } from '../../shared/evm-provider.mjs';
 import { hashFrom, createRandomEOA, signHashFromPrivateKey } from '../../shared/ecc-helper.mjs';
-import { toBeHex } from 'ethers';
 
-export async function sendEthTransaction(to) {
+/**
+ * Sends an Ethereum transaction using a randomly generated EOA (Externally Owned Account).
+ * @param {Object} data - The data for the transaction.
+ * @param {string} [data.to] - The recipient address of the transaction. If not provided, a random EOA will be created.
+ * @param {bigint} [data.value] - The amount of Ether to send in wei. Defaults to 1 wei.
+ * @param {Object} [options] - Options for the transaction.
+ * @param {boolean} [options.eip155=true] - Whether to use EIP-155 for transaction signing. Defaults to true.
+ * @returns {Promise<Object>}
+ * @throws {Error}
+ */
+export async function sendEthTransaction({ to, value } = {}, options = { eip155: true }) {
     const signer = await createRandomEOA();
-    const nonce = await getCurrentNonce(signer.address);
+    const [[networkInfo], nonce] = await Promise.all([
+        getNetworkInfo(), getCurrentNonce(signer.address),
+    ]);
 
+    const chainId = BigInt(networkInfo.chainId || 1);
     const unsignedLegacyTxObject = {
-        chainId: 1n, // Mainnet chain ID
-        to: to || (await createRandomEOA()).address.toLowerCase(),
-        value: 1n, // in wei
+        chainId,
+        to: to || (await createRandomEOA()).address, //.toLowerCase(),
+        value: value || 1n, // in wei
         nonce: BigInt(nonce),
         gasLimit: 21000n,
         gasPrice: 1000000000n // 1 gwei
     };
 
-    const digest = hashFrom(RLPfrom(unsignedLegacyTxObject));
-    const { r, s, recovery } = await signHashFromPrivateKey(signer.privateKey, digest);
-    const v = unsignedLegacyTxObject.chainId * 2n + 35n + BigInt(recovery);
+    const digest = hashFrom(RLPfrom(unsignedLegacyTxObject, options));
+    const { r, s, recovery, v: tempV } = await signHashFromPrivateKey(signer.privateKey, digest);
+    const v = chainId * 2n + 35n + BigInt(recovery);
 
     const signedLegacyTxObject = {
         ...unsignedLegacyTxObject,
-        v, r, s
-        // v: recovery, r, s
+        r, s, v: options.eip155 ? v : tempV, // v is 27 or 28 for legacy transactions, or chainId * 2 + 35 + recovery for EIP-155
     };
 
-    const rlpSignedTxObject = RLPfrom(signedLegacyTxObject);
+    console.log({ v, recovery, tempV, chainId, signedLegacyTxObject });
+    const rlpSignedTxObject = RLPfrom(signedLegacyTxObject, options);
 
     return {
         signer,
         digest,
-        signedLegacyTxObject,
-        signature: { v, r, s },
-        rawTransaction: toHexString(rlpSignedTxObject),
+        digest2: Transaction.from({ ...unsignedLegacyTxObject, type: 0 }).unsignedHash,
+        rawUnsignedTransaction: toHexString(RLPfrom(unsignedLegacyTxObject, options)),
+        rawUnsignedTransaction2: Transaction.from({ ...unsignedLegacyTxObject, type: 0 }).unsignedSerialized,
+        rawSignedTransaction: toHexString(rlpSignedTxObject),
+        rawSignedTransaction2: Transaction.from(toHexString(rlpSignedTxObject)).serialized,
+        rawSignedTransaction3: Transaction.from({
+            ...unsignedLegacyTxObject,
+            type: 0,
+            signature: {
+                r,
+                s,
+                yParity: Number(recovery),        // 0 or 1
+                networkV: Number(chainId)         // chainId for EIP‑155
+            }
+        }).serialized
     };
 }
 
-function RLPfrom(tx) {
+function RLPfrom(tx, options = { eip155: true }) {
     const isSigned = 'v' in tx && 'r' in tx && 's' in tx;
 
     const toHex = (val) => {
-        if (typeof val === 'bigint' || typeof val === 'number') return toBeHex(val);
+        if (typeof val === 'bigint' || typeof val === 'number') {
+            if (val === 0n) return '0x'; // empty RLP = 0x80
+            return toBeHex(val);
+        }
         return val; // assume already hex string
-    };
+    };;
 
     const encode = (input) => {
         if (typeof input === 'string' && input.startsWith('0x')) input = input.slice(2);
@@ -78,22 +107,31 @@ function RLPfrom(tx) {
             tx.gasLimit,
             tx.to,
             tx.value,
-            "0x",
+            tx.data || "0x",
             tx.v,
             tx.r,
             tx.s
         ]
-        : [
-            tx.nonce,
-            tx.gasPrice,
-            tx.gasLimit,
-            tx.to,
-            tx.value,
-            "0x",
-            tx.chainId,
-            0n,
-            0n
-        ];
+        : options.eip155
+            ?[
+                tx.nonce,
+                tx.gasPrice,
+                tx.gasLimit,
+                tx.to,
+                tx.value,
+                tx.data || "0x",
+                tx.chainId,
+                "0x",
+                "0x"
+            ]
+            : [
+                tx.nonce,
+                tx.gasPrice,
+                tx.gasLimit,
+                tx.to,
+                tx.value,
+                tx.data || "0x",
+            ];
 
     const encodedFields = fields.map(toHex).map(encode);
     return encodeList(encodedFields);
