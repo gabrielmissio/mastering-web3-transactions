@@ -65,3 +65,34 @@ export async function getTransactionCount(address) {
         return [null, error];
     }
 }
+
+export async function sendRawTransaction(rawTransaction) {
+    try {
+        const response = await fetch(RPC_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'eth_sendRawTransaction',
+                params: [rawTransaction],
+                id: 1,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+
+        return [data.result, null];
+    } catch (error) {
+        console.error('Error sending raw transaction:', error);
+        return [null, error];
+    }
+}

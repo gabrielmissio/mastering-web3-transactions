@@ -12,14 +12,21 @@ import { RLPfrom,toHexString } from '../../shared/rlp-helper.mjs';
 /**
  * Sends an Ethereum transaction using a randomly generated EOA (Externally Owned Account).
  * @param {Object} data - The data for the transaction.
- * @param {string} [data.to] - The recipient address of the transaction. If not provided, a random EOA will be created.
+ * @param {string} [data.to] - The recipient address of the transaction. If not provided, its a smartcontract deployment.
+ * @param {string} [data.data] - The data to send with the transaction, typically used for smart contract interactions. Defaults to '0x'.
  * @param {bigint} [data.value] - The amount of Ether to send in wei. Defaults to 1 wei.
  * @param {Object} [options] - Options for the transaction.
  * @param {boolean} [options.eip155=true] - Whether to use EIP-155 for transaction signing. Defaults to true.
  * @returns {Promise<Object>}
  * @throws {Error}
  */
-export async function sendEthTransaction({ to, value } = {}, options = { eip155: true }) {
+export async function sendLegacyTransaction({
+    to,
+    data,
+    value
+} = {},
+    options = { eip155: true })
+{
     const signer = await createRandomEOA();
     const [[networkInfo], nonce] = await Promise.all([
         getNetworkInfo(), getCurrentNonce(signer.address),
@@ -28,11 +35,15 @@ export async function sendEthTransaction({ to, value } = {}, options = { eip155:
     const chainId = BigInt(networkInfo.chainId || 1);
     const unsignedLegacyTxObject = {
         chainId,
-        to: to || (await createRandomEOA()).address, //.toLowerCase(),
-        value: value || 1n, // in wei
+        to: to  ?? null, // null for contract deployment
+        data: data ?? '0x',
+        value: value ?? 0n, // in wei
         nonce: BigInt(nonce),
-        gasLimit: 21000n,
-        gasPrice: 1000000000n // 1 gwei
+        // gasLimit: 21000n,
+        // gasPrice: 1000000000n // 1 gwei
+
+        gasLimit: 30000000n, // Set a high gas limit for testing
+        gasPrice: 0n
     };
 
     const digest = hashFrom(RLPfrom(unsignedLegacyTxObject, options));
@@ -51,6 +62,7 @@ export async function sendEthTransaction({ to, value } = {}, options = { eip155:
         signer,
         digest,
         digest2: Transaction.from({ ...unsignedLegacyTxObject, type: 0 }).unsignedHash,
+        signedLegacyTxObject,
         rawUnsignedTransaction: toHexString(RLPfrom(unsignedLegacyTxObject, options)),
         rawUnsignedTransaction2: Transaction.from({ ...unsignedLegacyTxObject, type: 0 }).unsignedSerialized,
         rawSignedTransaction: toHexString(rlpSignedTxObject),

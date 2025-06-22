@@ -1,4 +1,4 @@
-import { HDNodeWallet, SigningKey, getBytes, keccak256 } from "ethers"
+import { HDNodeWallet, SigningKey, getBytes as ethersGetBytes, keccak256 } from "ethers"
 
 export async function createRandomEOA() {
     const wallet = HDNodeWallet.createRandom();
@@ -18,4 +18,8 @@ export async function signHashFromPrivateKey(privateKey, digest) {
 
 export function hashFrom(data) {
     return keccak256(data);
+}
+
+export function getBytes(data) {
+    return ethersGetBytes(data);
 }
