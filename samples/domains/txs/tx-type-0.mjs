@@ -6,7 +6,7 @@
 import { Transaction } from 'ethers';
 import { getCurrentNonce } from '../../shared/nonce-manager.mjs';
 import { getNetworkInfo } from '../../shared/evm-provider.mjs';
-import { hashFrom, createRandomEOA, signHashFromPrivateKey } from '../../shared/ecc-helper.mjs';
+import { hashFrom, createRandomEOA, signWithRecoverableECDSA } from '../../shared/ecc-helper.mjs';
 import { RLPfrom,toHexString } from '../../shared/rlp-helper.mjs';
 
 /**
@@ -47,7 +47,7 @@ export async function sendLegacyTransaction({
     };
 
     const digest = hashFrom(RLPfrom(unsignedLegacyTxObject, options));
-    const { r, s, recovery, v: tempV } = await signHashFromPrivateKey(signer.privateKey, digest);
+    const { r, s, recovery, v: tempV } = await signWithRecoverableECDSA(signer.privateKey, digest);
     const v = chainId * 2n + 35n + BigInt(recovery);
 
     const signedLegacyTxObject = {

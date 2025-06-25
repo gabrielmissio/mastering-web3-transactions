@@ -17,7 +17,8 @@ async function legacyEnd2End() {
     // simple send eth transaction
     // const legacyTxResult = await sendLegacyTransaction({
     //     to: (await createRandomEOA()).address,
-    //     value: 1000000000n // 1 gwei in wei
+    //     // value: 1000000000n // 1 gwei in wei
+    //     value: 0n // 0 wei for testing
     // }, {
     //     eip155: true // Use EIP-155 for transaction signing
     // })
