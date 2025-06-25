@@ -37,6 +37,7 @@ Lorem ipsum.
 
 ### Essential EIPs
 
+* [EIP-155](./docs/eip-712)
 * [EIP-712](./docs/eip-712)
 * [foo](./docs/foo)
 * [bar](./docs/bar)

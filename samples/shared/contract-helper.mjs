@@ -1,5 +1,5 @@
-import { hashFrom , getBytes} from './ecc-helper.mjs';
-import { toHexString, rlpEncode, rlpEncodeList } from './rlp-helper.mjs';
+import { hashFrom , getBytes } from './ecc-helper.mjs';
+import { rlpEncode, rlpEncodeList } from './rlp-helper.mjs';
 
 /**
  * Computes the CREATE-based contract address (legacy deployment).
@@ -37,26 +37,71 @@ export function computeContractAddress(senderAddress, nonce) {
 }
 
 /**
- * Builds the call data for a smart contract method.
- * @param {Object} params - The parameters for the method.
- * @param {string} params.method - The name of the smart contract method.
- * @param {Array} [params.params=[]] - The parameters to be passed to the method.
- * @returns {string} The call data as a hexadecimal string.
- * @throws {Error} If the method is not a string or if params is not an array.
+ * Encodes a uint256 value as 32-byte left-padded hex (no 0x prefix).
  */
-export function buildCallData({ method, params = [] }) {
-    if (typeof method !== 'string') {
-        throw new Error('Method must be a string');
-    }
-    if (!Array.isArray(params)) {
-        throw new Error('Params must be an array');
-    }
+function encodeUint256(value) {
+    let hex = BigInt(value).toString(16);
+    if (hex.length > 64) throw new Error('uint256 overflow');
+    while (hex.length < 64) hex = '0' + hex;
+    return hex;
+}
 
-    const methodSignature = `${method}(${params.map(p => typeof p).join(',')})`;
-    const methodHash = hashFrom(methodSignature).slice(0, 10); // first 4 bytes
-    const encodedParams = params.map(p => toHexString(p)).join('');
+/**
+ * Encodes an address as 32-byte left-padded hex (no 0x prefix).
+ */
+function encodeAddress(addr) {
+    let hex = addr.toLowerCase().replace(/^0x/, '');
+    if (hex.length !== 40) throw new Error('Invalid address');
+    return '0'.repeat(24) + hex;
+}
 
-    return methodHash + encodedParams;
+/**
+ * Encodes a bool as 32-byte left-padded hex (no 0x prefix).
+ */
+function encodeBool(val) {
+    return '0'.repeat(63) + (val ? '1' : '0');
+}
+
+/**
+ * Minimal ABI encoder for uint256, address, bool.
+ */
+function abiEncode(type, value) {
+    if (type === 'uint256') return encodeUint256(value);
+    if (type === 'address') return encodeAddress(value);
+    if (type === 'bool') return encodeBool(value);
+    throw new Error(`Unsupported type: ${type}`);
+}
+
+/**
+ * Extracts parameter types from a method signature string.
+ * E.g., 'setCounter(uint256,address,bool)' => ['uint256','address','bool']
+ */
+function extractTypes(method) {
+    const match = method.match(/\(([^)]*)\)/);
+    if (!match) return [];
+    const types = match[1].split(',').map(s => s.trim()).filter(Boolean);
+    return types;
+}
+
+/**
+ * Builds the call data for a smart contract method.
+ * Supports uint256, address, bool.
+ */
+export function buildCallData(method, params = []) {
+    if (typeof method !== 'string') throw new Error('Method must be a string');
+    if (!Array.isArray(params)) throw new Error('Params must be an array');
+
+    // Function selector: first 4 bytes of keccak256 hash of the signature
+    const hash = hashFrom(Buffer.from(method)); // should return hex string
+    const selector = hash.replace(/^0x/, '').slice(0, 8);
+
+    // Extract types and encode params
+    const types = extractTypes(method);
+    if (types.length !== params.length) throw new Error('Parameter count mismatch');
+
+    const encodedParams = params.map((p, i) => abiEncode(types[i], p)).join('');
+
+    return '0x' + selector + encodedParams;
 }
 
 /**

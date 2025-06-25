@@ -1,6 +1,5 @@
 import { getCreateAddress } from 'ethers'
 import {
-    // eslint-disable-next-line no-unused-vars
     buildCallData,
     computeContractAddress,
     getCounterSmartContractBytecode,
@@ -41,6 +40,21 @@ async function legacyEnd2End() {
     const legacyCounterContractAddress = computeContractAddress(deployContractTx.signer.address, '0x' + deployContractTx.signedLegacyTxObject.nonce.toString(16));
     console.log("Legacy Counter Contract Address:", legacyCounterContractAddress);
     console.log("Legacy Counter Contract Address (ethers):", getCreateAddress({ from: deployContractTx.signer.address, nonce: '0x' + deployContractTx.signedLegacyTxObject.nonce.toString(16) }));
+
+    const setCounterTx = await sendLegacyTransaction({
+        to: legacyCounterContractAddress,
+        value: null,
+        data: buildCallData('setNumber(uint256)', ['0x1234']),
+    }, {
+        eip155: true // Use EIP-155 for transaction signing
+    })
+    console.log("Legacy Transaction Data (set counter):", setCounterTx);
+    const legacySetCounterTxBroadcastResult = await sendRawTransaction(setCounterTx.rawSignedTransaction)
+    console.log("Legacy Transaction Broadcast Result (set counter):", legacySetCounterTxBroadcastResult);
+    console.log({
+        address: setCounterTx.signer.address,
+        nonce: setCounterTx.signedLegacyTxObject.nonce,
+    });
 }
 
 main().catch(console.error);
