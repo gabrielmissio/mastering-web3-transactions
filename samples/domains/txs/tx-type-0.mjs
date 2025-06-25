@@ -5,7 +5,7 @@
 */
 import { Transaction } from 'ethers';
 import { getCurrentNonce } from '../../shared/nonce-manager.mjs';
-import { getNetworkInfo } from '../../shared/evm-provider.mjs';
+import { getNetworkInfo, estimateGasPrice, estimateGasUsage } from '../../shared/evm-provider.mjs';
 import { hashFrom, createRandomEOA, signWithRecoverableECDSA } from '../../shared/ecc-helper.mjs';
 import { RLPfrom,toHexString } from '../../shared/rlp-helper.mjs';
 
@@ -17,33 +17,48 @@ import { RLPfrom,toHexString } from '../../shared/rlp-helper.mjs';
  * @param {bigint} [data.value] - The amount of Ether to send in wei. Defaults to 1 wei.
  * @param {Object} [options] - Options for the transaction.
  * @param {boolean} [options.eip155=true] - Whether to use EIP-155 for transaction signing. Defaults to true.
+ * @param {boolean} [options.freeGas=false] - Whether to use free gas (0 gas price). Defaults to false.
  * @returns {Promise<Object>}
  * @throws {Error}
  */
 export async function sendLegacyTransaction({
     to,
     data,
-    value
+    value,
+    // nonce,
 } = {},
-    options = { eip155: true })
+    options = {
+        eip155: true,
+        freeGas: false,
+    })
 {
+    const isSimpleTx = to && !data 
     const signer = await createRandomEOA();
-    const [[networkInfo], nonce] = await Promise.all([
-        getNetworkInfo(), getCurrentNonce(signer.address),
+
+    const [ nonce, { chainId }, gasPrice, gasLimit] = await Promise.all([
+        getCurrentNonce(signer.address),
+        getNetworkInfo().then(([data, error]) => {
+            if (error) throw error
+            return data;
+        }),
+        options.freeGas ? 0n : estimateGasPrice().then(([data, error]) => {
+            if (error) throw error
+            return data;
+        }),
+        isSimpleTx ? 21000n : estimateGasUsage({ from: signer.address, to, value, data }).then(([data, error]) => {
+            if (error) throw error
+            return data;
+        })
     ]);
 
-    const chainId = BigInt(networkInfo.chainId || 1);
     const unsignedLegacyTxObject = {
         chainId,
         to: to  ?? null, // null for contract deployment
         data: data ?? '0x',
         value: value ?? 0n, // in wei
         nonce: BigInt(nonce),
-        // gasLimit: 21000n,
-        // gasPrice: 1000000000n // 1 gwei
-
-        gasLimit: 30000000n, // Set a high gas limit for testing
-        gasPrice: 0n
+        gasLimit,
+        gasPrice,
     };
 
     const digest = hashFrom(RLPfrom(unsignedLegacyTxObject, options));

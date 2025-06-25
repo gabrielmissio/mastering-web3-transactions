@@ -96,3 +96,70 @@ export async function sendRawTransaction(rawTransaction) {
         return [null, error];
     }
 }
+
+export async function estimateGasPrice() {
+    try {
+        const response = await fetch(RPC_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'eth_gasPrice',
+                params: [],
+                id: 1,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+
+        return [BigInt(data.result), null];
+    } catch (error) {
+        console.error('Error estimating gas price:', error);
+        return [null, error];
+    }
+}
+
+export async function estimateGasUsage({ from, to, value, data } = {})  {
+    try {
+        const response = await fetch(RPC_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'eth_estimateGas',
+                params: [{
+                    from,
+                    to,
+                    value: value ? `0x${value.toString(16)}` : '0x0',
+                    data: data || '0x',
+                }],
+                id: 1,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const dataResponse = await response.json();
+        if (dataResponse.error) {
+            throw new Error(dataResponse.error.message);
+        }
+
+        return [BigInt(dataResponse.result), null];
+    } catch (error) {
+        console.error('Error estimating gas usage:', error);
+        return [null, error];
+    }
+}
