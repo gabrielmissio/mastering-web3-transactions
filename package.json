@@ -5,8 +5,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint",
     "bc:init": "anvil --gas-price 0 --base-fee 0",
-    "txs:demo": "node ./samples/domains/txs/index.mjs",
-    "end2end": "dotenvx run -- node ./samples/index.mjs"
+    "samples:counter": "dotenvx run -- node samples/counter.mjs"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.44.2",

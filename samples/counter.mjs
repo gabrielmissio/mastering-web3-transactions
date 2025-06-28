@@ -1,14 +1,9 @@
-import { NonceManager } from './core/nonce.mjs' 
-import { JsonHttpProvider } from './core/provider.mjs'
-import { Signer } from './core/signer.mjs'
-import { TransactionBuilder } from './core/transaction.mjs'
-// import { HDWallet, Wallet } from './core/wallet.mjs'
-import {  Wallet } from './core/wallet.mjs'
+import { setupWallet } from './_setup.mjs';
 
 import {
     buildCallData,
     getCounterSmartContractBytecode,
-} from './shared/contract-helper.mjs'
+} from '../src/shared/contract-helper.mjs';
 
 async function main(wallet = setupWallet()) {
     // Deploy a smart contract
@@ -41,25 +36,6 @@ async function main(wallet = setupWallet()) {
         callData: buildCallData('number()'),
     });
     console.log('New number in contract:', newNumber);
-}
-
-function setupWallet() {
-    const rpcProvider = new JsonHttpProvider({ url: process.env.RPC_URL });
-    const nonceManager = new NonceManager({ provider: rpcProvider });
-    // const signer = new Signer({ privateKey: process.env.PRIVATE_KEY });
-    const signer = new Signer();
-    const txBuilder = new TransactionBuilder({ rpcProvider, nonceManager, signer }); // review whether we need to pass the signer here
-
-    const wallet = new Wallet({
-        signer,
-        txBuilder,
-        rpcProvider,
-    }, {
-        eip155: true,
-        freeGas: process.env.IS_GASLESS_NETWORK === 'true',
-    });
-
-    return wallet;
 }
 
 main()
