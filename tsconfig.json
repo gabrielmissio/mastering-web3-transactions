@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",                         // Modern JS output (async/await, etc.)
+    "module": "CommonJS",                         // Use ES modules (best for native ESM in Node.js)
+    "moduleResolution": "node",                 // Resolve modules like Node.js
+    "outDir": "./dist",                         // Output folder
+    "rootDir": "./",                         // Source root
+    "strict": true,                             // Enable all strict type-checking
+    "esModuleInterop": true,                    // Allow CJS default import style
+    "skipLibCheck": true,                       // Speeds up build (safe unless writing a lib today)
+    "forceConsistentCasingInFileNames": true,   // Prevents cross-platform case issues
+    "resolveJsonModule": true,                  // Enables `import config from './config.json'`
+    "noFallthroughCasesInSwitch": true,         // Avoids accidental switch bugs
+    "noUncheckedIndexedAccess": true,           // Helps catch object[key] bugs
+
+    // Future proofing for when it becomes a library
+    "declaration": true,                        // Emit .d.ts files
+    "declarationDir": "./types",                // Keep type definitions separate
+    "emitDeclarationOnly": false                // Still emit .js files normally
+  },
+  "include": ["src/**/*", "samples/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}

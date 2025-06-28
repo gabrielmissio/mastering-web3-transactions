@@ -1,17 +1,22 @@
-import { keccak256 } from '../shared/ecc-helper.mjs';
-import { RLPfrom, toHexString } from '../shared/rlp-helper.mjs';
+import { keccak256 } from "../shared/ecc-helper";
+import { isValidAddress } from "../shared/address-helper";
+import { RLPfrom, toHexString } from "../shared/rlp-helper";
 
 export class TransactionBuilder {
+    signer: any;
+    rpcProvider: any;
+    nonceManager: any;
+
     constructor({
         signer,
         rpcProvider,
         nonceManager,
-    } = {}) {
+    }: any = {}) {
         if (!rpcProvider) {
-            throw new Error('RPC Provider is required');
+            throw new Error("RPC Provider is required");
         }
         if (!nonceManager) {
-            throw new Error('Nonce Manager is required');
+            throw new Error("Nonce Manager is required");
         }
 
         this.signer = signer
@@ -20,14 +25,14 @@ export class TransactionBuilder {
     }
 
     async buildType0(
-        payload,
+        payload: any,
         options
     = {
         eip155: true,
         freeGas: false,
     }) {
-        if (!payload || typeof payload !== 'object') {
-            throw new Error('Invalid transaction data');
+        if (!payload || typeof payload !== "object") {
+            throw new Error("Invalid transaction data");
         }
         const { to, value, data, address } = payload;
         // const { to, value, data } = payload;
@@ -37,15 +42,15 @@ export class TransactionBuilder {
     
         const [ nonce, { chainId }, gasPrice, gasLimit] = await Promise.all([
             this.nonceManager.getCurrentNonce(address),
-            this.rpcProvider.getNetworkInfo().then(([data, error]) => {
+            this.rpcProvider.getNetworkInfo().then(([data, error]: [any, any]) => {
                 if (error) throw error
                 return data;
             }),
-            options.freeGas ? 0n : this.rpcProvider.estimateGasPrice().then(([data, error]) => {
+            options.freeGas ? 0n : this.rpcProvider.estimateGasPrice().then(([data, error]: [any, any]) => {
                 if (error) throw error
                 return data;
             }),
-            isSimpleTx ? 21000n : this.rpcProvider.estimateGasUsage({ from: address, to, value, data }).then(([data, error]) => {
+            isSimpleTx ? 21000n : this.rpcProvider.estimateGasUsage({ from: address, to, value, data }).then(([data, error]: [any, any]) => {
                 if (error) throw error
                 return data;
             })
@@ -54,7 +59,7 @@ export class TransactionBuilder {
         const unsignedLegacyTxObject = {
             chainId,
             to: to  ?? null, // null for contract deployment
-            data: data ?? '0x',
+            data: data ?? "0x",
             value: value ?? 0n, // in wei
             nonce: BigInt(nonce),
             gasLimit,
@@ -90,23 +95,26 @@ export class TransactionBuilder {
 }
 
 class Transaction {
-    constructor({ signature } = {}) {
-        if (signature && typeof signature !== 'object') {
-            throw new Error('Invalid signature format');
+    eip155!: boolean;
+    signature: any;
+
+    constructor({ signature }: any = {}) {
+        if (signature && typeof signature !== "object") {
+            throw new Error("Invalid signature format");
         }
         if (signature && (!signature.r || !signature.s || !signature.v)) {
-            throw new Error('Signature must contain r, s, and v');
+            throw new Error("Signature must contain r, s, and v");
         }
         this.signature = signature ?? null;
     }
 
     toUnsignedTxObject() {
-        throw new Error('Method toUnsignedTxObject must be implemented by subclasses');
+        throw new Error("Method toUnsignedTxObject must be implemented by subclasses");
     }
 
     toSignedTxObject() {
-        if (!this.signature) throw new Error('Missing signature');
-        throw new Error('Method toSignedTxObject must be implemented by subclasses');
+        if (!this.signature) throw new Error("Missing signature");
+        throw new Error("Method toSignedTxObject must be implemented by subclasses");
     }
 
     unsignedHash() {
@@ -126,19 +134,42 @@ class Transaction {
     }
 }
 
-class TransactionType0 extends Transaction {
+export class TransactionType0 extends Transaction {
+    to: string | null;
+    value: any
+    data: any
+    nonce: bigint;
+    gasLimit: bigint;
+    gasPrice: bigint;
+    chainId: bigint;
+    eip155: boolean;
+
+
     constructor({
         to = null,
         value = 0n,
-        data = '0x',
+        data = "0x",
         nonce,
         gasLimit,
         gasPrice,
         chainId,
         signature = null,
         eip155 = true, // educational purposes only
-    } = {}) {
+    }: any = {}) {
+        // TODO: Review what more properties we want to handle in the "Transaction" class
         super({ signature });
+
+        if (to && !isValidAddress(to)) {
+            throw new Error("Invalid \"to\" address");
+        }
+
+        // validate nonce
+        if (typeof nonce !== "bigint") {
+            throw new Error("Nonce must be a bigint");
+        }
+        if (nonce < 0n) {
+            throw new Error("Nonce cannot be negative");
+        }
         
         // TODO: validate inputs
         this.to = to;

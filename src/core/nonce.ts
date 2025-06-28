@@ -1,14 +1,16 @@
 const FALLBACK_NONCE = 0;
 
 export class NonceManager {
+    provider: any;
+
     constructor({
         provider,
-    } = {}) {
+    }: any = {}) {
         this.provider = provider;
 
     }
 
-    async getCurrentNonce(address) {
+    async getCurrentNonce(address: string): Promise<number> {
         const [nonce, error] = await this.provider.getTransactionCount(address)
 
         if (error) {

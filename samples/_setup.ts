@@ -4,9 +4,9 @@ import {
     NonceManager,
     JsonHttpProvider,
     TransactionBuilder,
-} from "../src/index.mjs"
+} from "../src/index"
 
-export function setupWallet() {
+export function setupWallet(): Wallet {
     const rpcProvider = new JsonHttpProvider({ url: process.env.RPC_URL });
     const nonceManager = new NonceManager({ provider: rpcProvider });
     // const signer = new Signer({ privateKey: process.env.PRIVATE_KEY });
@@ -19,7 +19,7 @@ export function setupWallet() {
         rpcProvider,
     }, {
         eip155: true,
-        freeGas: process.env.IS_GASLESS_NETWORK === 'true',
+        freeGas: process.env.IS_GASLESS_NETWORK === "true",
     });
 
     return wallet;

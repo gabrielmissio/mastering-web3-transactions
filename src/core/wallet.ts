@@ -1,11 +1,16 @@
-import { computeContractAddress } from "../shared/contract-helper.mjs"
+import { computeContractAddress } from "../shared/contract-helper"
 
 export class Wallet {
+    signer: any;
+    txBuilder: any;
+    rpcProvider: any;
+    txOptions: any;
+
     constructor({
         signer,
         txBuilder,
         rpcProvider,
-    } = {}, defaultTxOptions = {
+    }: any = {}, defaultTxOptions = {
         eip155: true,
         freeGas: false,
     }) {
@@ -21,7 +26,7 @@ export class Wallet {
         }
     }
 
-    async deployContract({ bytecode, value }, options = this.txOptions) {
+    async deployContract({ bytecode, value }: any, options = this.txOptions) {
         const signedTx = await this.txBuilder.buildType0({
             to: null,
             value,
@@ -31,7 +36,7 @@ export class Wallet {
 
         const [broadcastData, broadcastError] = await this.rpcProvider.sendRawTransaction(signedTx.signedRawTxHex())
         if (broadcastError) {
-            console.error('Error broadcasting transaction:', broadcastError);
+            console.error("Error broadcasting transaction:", broadcastError);
             throw broadcastError;
         }
 
@@ -43,7 +48,7 @@ export class Wallet {
         }
     }
 
-    async callContract({ address, callData }, options = this.txOptions) {
+    async callContract({ address, callData }: any, options = this.txOptions) {
         const [result, error] = await this.rpcProvider.call({
             to: address,
             from: this.signer.getAddress(),
@@ -51,14 +56,14 @@ export class Wallet {
         }, options);
 
         if (error) {
-            console.error('Error calling contract:', error);
+            console.error("Error calling contract:", error);
             throw error;
         }
 
         return result;
     }
 
-    async sendContractTransaction({ address, callData, value }, options = this.txOptions) {
+    async sendContractTransaction({ address, callData, value }: any, options = this.txOptions) {
         const signedTx = await this.txBuilder.buildType0({
             to: address,
             value,
@@ -68,7 +73,7 @@ export class Wallet {
 
         const [broadcastData, broadcastError] = await this.rpcProvider.sendRawTransaction(signedTx.signedRawTxHex())
         if (broadcastError) {
-            console.error('Error broadcasting transaction:', broadcastError);
+            console.error("Error broadcasting transaction:", broadcastError);
             throw broadcastError;
         }
 

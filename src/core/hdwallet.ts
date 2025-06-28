@@ -1,14 +1,19 @@
-// import { Signer } from "./signer.mjs"
-// import { Wallet } from "./wallet.mjs";
+// import { Signer } from "./signer"
+// import { Wallet } from "./wallet";
 
 import {
     isValidBIP32Path,
     randomBIP39Mnemonic,
     generateBIP32NodeFromMnemonic,
-} from '../shared/ecc-helper.mjs';
+} from '../shared/ecc-helper';
 
 export class HDWallet {
-    constructor({ mnemonic, password = '', path = "m/44'/60'/0'/0/0" } = {}) {
+    mnemonic: string;
+    password: string;
+    path: string;
+    node: any;
+
+    constructor({ mnemonic, password = '', path = "m/44'/60'/0'/0/0" }: any = {}) {
         if (!mnemonic) {
             mnemonic = randomBIP39Mnemonic();
         } else {
@@ -43,7 +48,7 @@ export class HDWallet {
     }
 
     // eslint-disable-next-line no-unused-vars
-    derivateNode(node, derivationPath) {
-        // derivePath | derivateIndex
-    }
+    // derivateNode(node, derivationPath) {
+    //     // derivePath | derivateIndex
+    // }
 }

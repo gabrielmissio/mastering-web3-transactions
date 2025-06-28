@@ -2,18 +2,18 @@
  * Manual RLP encoding utility for legacy Ethereum transactions.
  * Supports EIP-155 replay protection and contract deployment (to = null).
  */
-import { toBeHex, getBytes } from 'ethers';
+import { toBeHex, getBytes } from "ethers";
 
-export function RLPfrom(tx, options = { eip155: true }) {
-    const isSigned = 'v' in tx && 'r' in tx && 's' in tx;
+export function RLPfrom(tx: any, options = { eip155: true }) {
+    const isSigned = "v" in tx && "r" in tx && "s" in tx;
 
-    const toHex = (val) => {
-        if (val === null || val === undefined) return '0x'; // treat null as empty (e.g., contract deployment)
-        if (typeof val === 'bigint' || typeof val === 'number') {
-            if (val === 0n || val === 0) return '0x';
+    const toHex = (val: any) => {
+        if (val === null || val === undefined) return "0x"; // treat null as empty (e.g., contract deployment)
+        if (typeof val === "bigint" || typeof val === "number") {
+            if (val === 0n || val === 0) return "0x";
             return toBeHex(val);
         }
-        if (typeof val === 'string') return val;
+        if (typeof val === "string") return val;
         throw new Error(`Unsupported value type for RLP encoding: ${typeof val}`);
     };
 
@@ -24,7 +24,7 @@ export function RLPfrom(tx, options = { eip155: true }) {
             tx.gasLimit,
             tx.to ?? null,
             tx.value,
-            tx.data ?? '0x',
+            tx.data ?? "0x",
             tx.v,
             tx.r,
             tx.s
@@ -36,10 +36,10 @@ export function RLPfrom(tx, options = { eip155: true }) {
                 tx.gasLimit,
                 tx.to ?? null,
                 tx.value,
-                tx.data ?? '0x',
+                tx.data ?? "0x",
                 tx.chainId,
-                '0x',
-                '0x'
+                "0x",
+                "0x"
             ]
             : [
                 tx.nonce,
@@ -47,46 +47,50 @@ export function RLPfrom(tx, options = { eip155: true }) {
                 tx.gasLimit,
                 tx.to ?? null,
                 tx.value,
-                tx.data ?? '0x'
+                tx.data ?? "0x"
             ];
 
     const encodedFields = fields.map(toHex).map(rlpEncode);
     return rlpEncodeList(encodedFields);
 }
 
-export function toHexString(bytes) {
-    return '0x' + [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+export function toHexString(bytes: any) {
+    return "0x" + [...bytes].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function rlpEncode(input) {
+export function rlpEncode(input: any) {
     if (input === null || input === undefined) {
         // RLP empty string
         return Uint8Array.from([0x80]);
     }
-    if (typeof input === 'string') {
-        if (input.startsWith('0x')) {
+    if (typeof input === "string") {
+        if (input.startsWith("0x")) {
             input = input.slice(2);
         }
         if (input.length % 2 === 1) {
-            input = '0' + input; // pad to even length
+            input = "0" + input; // pad to even length
         }
-        input = '0x' + input;
+        input = "0x" + input;
     }
 
     const bytes = getBytes(input); // ethers ensures this works with hex strings
+    if (bytes[0] === undefined){
+            return Uint8Array.from([...encodeLength(bytes.length, 0x80), ...bytes]);
+    } // review it later
+    
     if (bytes.length === 1 && bytes[0] < 0x80) return bytes;
     return Uint8Array.from([...encodeLength(bytes.length, 0x80), ...bytes]);
 }
 
-export function rlpEncodeList(encodedItems) {
+export function rlpEncodeList(encodedItems: any[]) {
     const payload = Uint8Array.from(encodedItems.flatMap(i => [...i]));
     return Uint8Array.from([...encodeLength(payload.length, 0xc0), ...payload]);
 }
 
-function encodeLength(len, offset) {
+function encodeLength(len: number, offset: number) {
     if (len < 56) return [offset + len];
     const hexLen = len.toString(16);
-    const l = hexLen.length % 2 === 0 ? hexLen : '0' + hexLen;
-    const buf = Uint8Array.from(Buffer.from(l, 'hex'));
+    const l = hexLen.length % 2 === 0 ? hexLen : "0" + hexLen;
+    const buf = Uint8Array.from(Buffer.from(l, "hex"));
     return [offset + 55 + buf.length, ...buf];
 }
