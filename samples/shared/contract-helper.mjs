@@ -1,4 +1,4 @@
-import { hashFrom , getBytes } from './ecc-helper.mjs';
+import { keccak256, getBytes } from './ecc-helper.mjs';
 import { rlpEncode, rlpEncodeList } from './rlp-helper.mjs';
 
 /**
@@ -32,7 +32,7 @@ export function computeContractAddress(senderAddress, nonce) {
     ]);
 
     // keccak256 and take last 20 bytes
-    const hash = hashFrom(encoded);
+    const hash = keccak256(encoded);
     return '0x' + hash.slice(-40);
 }
 
@@ -92,7 +92,7 @@ export function buildCallData(method, params = []) {
     if (!Array.isArray(params)) throw new Error('Params must be an array');
 
     // Function selector: first 4 bytes of keccak256 hash of the signature
-    const hash = hashFrom(Buffer.from(method)); // should return hex string
+    const hash = keccak256(Buffer.from(method)); // should return hex string
     const selector = hash.replace(/^0x/, '').slice(0, 8);
 
     // Extract types and encode params
