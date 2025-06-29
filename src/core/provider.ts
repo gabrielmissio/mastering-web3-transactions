@@ -1,7 +1,9 @@
-export class JsonHttpProvider {
+import { RpcProvider } from "./interfaces";
+
+export class JsonHttpProvider implements RpcProvider {
     url: string;
 
-    constructor({ url }: any = {}) {
+    constructor({ url }: { url?: string } = {}) {
         // TODO: validate URL format
         this.url = url || "http://localhost:8545"; // Default to local Ethereum node
     }
@@ -51,7 +53,7 @@ export class JsonHttpProvider {
         return data.result;
     }
 
-    async getNetworkInfo() {
+    async getNetworkInfo(): Promise<any> {
         try {
             const result = await this.request("net_version", []);
             return [{ chainId: BigInt(result) }, null];
@@ -61,7 +63,7 @@ export class JsonHttpProvider {
         }
     }
 
-    async getBlockNumber() {
+    async getBlockNumber(): Promise<any> {
         try {
             const result = await this.request("eth_blockNumber", []);
             return [BigInt(result), null];
@@ -72,7 +74,7 @@ export class JsonHttpProvider {
         }
     }
 
-    async getTransactionCount(address: string) {
+    async getTransactionCount(address: string): Promise<any> {
         try {
             const result = await this.request("eth_getTransactionCount", [address, "latest"]);
             return [parseInt(result, 16), null];
@@ -82,7 +84,7 @@ export class JsonHttpProvider {
         }
     }
 
-    async sendRawTransaction(rawTransaction: string) {
+    async sendRawTransaction(rawTransaction: string): Promise<any> {
         try {
             const result = await this.request("eth_sendRawTransaction", [rawTransaction]);
             return [result, null];
@@ -92,7 +94,7 @@ export class JsonHttpProvider {
         }
     }
 
-    async estimateGasPrice() {
+    async estimateGasPrice(): Promise<any> {
         try {
             const result = await this.request("eth_gasPrice", []);
             return [BigInt(result), null];
@@ -102,7 +104,7 @@ export class JsonHttpProvider {
         }
     }
 
-    async estimateGasUsage({ from, to, value, data }: any = {}) {
+    async estimateGasUsage({ from, to, value, data }: any = {}): Promise<any> {
         try {
             const params = [{
                 from,
@@ -118,7 +120,7 @@ export class JsonHttpProvider {
         }
     }
 
-    async call({ to, data }: any) {
+    async call({ to, data }: any): Promise<any> {
         try {
             const params = [{
                 to,

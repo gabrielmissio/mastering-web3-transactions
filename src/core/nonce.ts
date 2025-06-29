@@ -1,17 +1,20 @@
-const FALLBACK_NONCE = 0;
+import { NonceManager, RpcProvider } from "./interfaces";
 
-export class NonceManager {
-    provider: any;
+const FALLBACK_NONCE = 0n;
+
+export class SimpleNonceManager implements NonceManager{
+    #provider: RpcProvider;
 
     constructor({
         provider,
-    }: any = {}) {
-        this.provider = provider;
-
+    }: {
+        provider: RpcProvider;
+    }) {
+        this.#provider = provider
     }
 
-    async getCurrentNonce(address: string): Promise<number> {
-        const [nonce, error] = await this.provider.getTransactionCount(address)
+    async getCurrentNonce(address: string): Promise<bigint> {
+        const [nonce, error] = await this.#provider.getTransactionCount(address)
 
         if (error) {
             console.error(`Error fetching nonce for address ${address}:`, error);

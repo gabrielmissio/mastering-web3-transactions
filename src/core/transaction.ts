@@ -1,17 +1,30 @@
 import { keccak256 } from "../shared/ecc-helper";
 import { isValidAddress } from "../shared/address-helper";
-import { RLPencodeFields, toHexString } from "../shared/rlp-helper"; // <-- update import
+import { RLPencodeFields, toHexString } from "../shared/rlp-helper";
+import { Signer, RpcProvider, NonceManager } from "./interfaces";
+
+export type TxOptions = {
+    eip155?: boolean; // Default: true
+    freeGas?: boolean; // Default: false
+}
 
 export class TransactionBuilder {
-    signer: any;
-    rpcProvider: any;
-    nonceManager: any;
+    #signer: Signer;
+    #rpcProvider: RpcProvider;
+    #nonceManager: NonceManager;
 
     constructor({
         signer,
         rpcProvider,
         nonceManager,
-    }: any = {}) {
+    }: {
+        signer: Signer;
+        rpcProvider: RpcProvider;
+        nonceManager: NonceManager;
+    }) {
+        if (!signer) {
+            throw new Error("Signer is required");
+        }
         if (!rpcProvider) {
             throw new Error("RPC Provider is required");
         }
@@ -19,38 +32,43 @@ export class TransactionBuilder {
             throw new Error("Nonce Manager is required");
         }
 
-        this.signer = signer
-        this.rpcProvider = rpcProvider;
-        this.nonceManager = nonceManager;
+        this.#signer = signer
+        this.#rpcProvider = rpcProvider;
+        this.#nonceManager = nonceManager;
     }
 
     async buildType0(
-        payload: any,
-        options
-    = {
-        eip155: true,
-        freeGas: false,
-    }) {
+        payload: {
+            to?: string | null; // null for contract deployment
+            value?: bigint; // in wei
+            data?: string; // hex string, default: "0x"
+            from: string; // address of the sender, used for nonce management
+        },
+        options: TxOptions = {
+            eip155: true,
+            freeGas: false,
+        }
+    ): Promise<TransactionType0> {
         if (!payload || typeof payload !== "object") {
             throw new Error("Invalid transaction data");
         }
-        const { to, value, data, address } = payload;
+        const { to, value, data, from } = payload;
         // const { to, value, data } = payload;
-        // Maybe remove address from data and use signer.address instead
+        // Maybe remove from from data and use signer.address instead
 
         const isSimpleTx = to && !data 
     
         const [ nonce, { chainId }, gasPrice, gasLimit] = await Promise.all([
-            this.nonceManager.getCurrentNonce(address),
-            this.rpcProvider.getNetworkInfo().then(([data, error]: [any, any]) => {
+            this.#nonceManager.getCurrentNonce(from),
+            this.#rpcProvider.getNetworkInfo().then(([data, error]: [any, any]) => {
                 if (error) throw error
                 return data;
             }),
-            options.freeGas ? 0n : this.rpcProvider.estimateGasPrice().then(([data, error]: [any, any]) => {
+            options.freeGas ? 0n : this.#rpcProvider.estimateGasPrice().then(([data, error]: [any, any]) => {
                 if (error) throw error
                 return data;
             }),
-            isSimpleTx ? 21000n : this.rpcProvider.estimateGasUsage({ from: address, to, value, data }).then(([data, error]: [any, any]) => {
+            isSimpleTx ? 21000n : this.#rpcProvider.estimateGasUsage({ from, to, value, data }).then(([data, error]: [any, any]) => {
                 if (error) throw error
                 return data;
             })
@@ -69,7 +87,7 @@ export class TransactionBuilder {
         // Use TransactionType0 to build RLP fields
         const tx = new TransactionType0({ ...unsignedLegacyTxObject, eip155: options.eip155 });
         const digest = keccak256(RLPencodeFields(tx.getUnsignedRLPFields())); // <-- use new encoder
-        const { r, s, recovery, v: tempV } = await this.signer.signWithRecoverableECDSA(digest);
+        const { r, s, recovery, v: tempV } = await this.#signer.signWithRecoverableECDSA(digest);
         const v = chainId * 2n + 35n + BigInt(recovery);
 
         return new TransactionType0({

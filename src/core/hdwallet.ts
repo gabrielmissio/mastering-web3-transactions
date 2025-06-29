@@ -5,7 +5,7 @@ import {
     isValidBIP32Path,
     randomBIP39Mnemonic,
     generateBIP32NodeFromMnemonic,
-} from '../shared/ecc-helper';
+} from "../shared/ecc-helper";
 
 export class HDWallet {
     mnemonic: string;
@@ -13,7 +13,7 @@ export class HDWallet {
     path: string;
     node: any;
 
-    constructor({ mnemonic, password = '', path = "m/44'/60'/0'/0/0" }: any = {}) {
+    constructor({ mnemonic, password = "", path = "m/44'/60'/0'/0/0" }: any = {}) {
         if (!mnemonic) {
             mnemonic = randomBIP39Mnemonic();
         } else {
@@ -21,13 +21,13 @@ export class HDWallet {
             try {
                 generateBIP32NodeFromMnemonic(mnemonic, password, "m");
             } catch (e) {
-                console.error('Invalid mnemonic:', e);
-                throw new Error('Invalid mnemonic');
+                console.error("Invalid mnemonic:", e);
+                throw new Error("Invalid mnemonic");
             }
         }
 
         if (!isValidBIP32Path(path)) {
-            throw new Error('Invalid BIP32 path');
+            throw new Error("Invalid BIP32 path");
         }
 
         // TODO: Encrypt mnemonic, password, and node keys
@@ -47,7 +47,7 @@ export class HDWallet {
         }
     }
 
-    // eslint-disable-next-line no-unused-vars
+     
     // derivateNode(node, derivationPath) {
     //     // derivePath | derivateIndex
     // }

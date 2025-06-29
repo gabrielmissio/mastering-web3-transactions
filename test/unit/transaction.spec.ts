@@ -81,14 +81,64 @@ describe("Transaction", () => {
 
             // TODO: Add Signature validation tests
         })
+
+        describe("RLP Encoding", () => {
+            // https://eips.ethereum.org/EIPS/eip-155
+            // NOTE: Check EIP-155 for RLP encoding of legacy transactions
+            // pre-155 (nonce, gasprice, startgas/gasLimit, to, value, data)
+            // post-155 (nonce, gasprice, startgas/gasLimit, to, value, data, chainId, 0, 0)
+            it("should provide correct RLP fields for encoding unsigned pre-EIP-155", () => {
+                // Arrange
+                const legacyTxArgs = makeTxType0Args({ eip155: false })
+                const expectedFields = [
+                    legacyTxArgs.nonce,
+                    legacyTxArgs.gasPrice,
+                    legacyTxArgs.gasLimit,
+                    legacyTxArgs.to,
+                    legacyTxArgs.value,
+                    legacyTxArgs.data ?? "0x",
+                ]
+
+                // Act
+                const legacyTx = new TransactionType0(legacyTxArgs)
+
+                // Assert
+                expect(legacyTx.getUnsignedRLPFields()).toEqual(expectedFields)
+            })
+
+            it("should provide correct RLP fields for encoding unsigned post-EIP-155", () => {
+                // Arrange
+                const legacyTxArgs = makeTxType0Args({ eip155: true })
+                const expectedFields = [
+                    legacyTxArgs.nonce,
+                    legacyTxArgs.gasPrice,
+                    legacyTxArgs.gasLimit,
+                    legacyTxArgs.to,
+                    legacyTxArgs.value,
+                    legacyTxArgs.data ?? "0x",
+                    legacyTxArgs.chainId,
+                    "0x",
+                    "0x",
+                ]
+
+                // Act
+                const legacyTx = new TransactionType0(legacyTxArgs)
+
+                // Assert
+                expect(legacyTx.getUnsignedRLPFields()).toEqual(expectedFields)
+            })
+
+            // TODO: Add tests for RLP encoding of signed transactions
+        })
     })
 })
 
-function makeTxType0Args(overrides: any) {
+function makeTxType0Args(overrides: any = {}): any {
     return {
         chainId: 11155111n, // Sepolia Testnet Chain ID
         to: "0x6c4837d1bbD09A660B83E5Fa49dD070db9f5733F", // Replace with your address
         value: 1000000000000000n, // 0.001 ETH in wei
+        // data: "0x",
         nonce: 0n,
         gasLimit: 21000n,
         gasPrice: 1000000000n, // 1 Gwei

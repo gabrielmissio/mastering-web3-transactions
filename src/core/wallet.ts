@@ -1,4 +1,5 @@
 import { computeContractAddress } from "../shared/contract-helper"
+// import { Signer, RpcProvider } from "./interfaces";
 
 export class Wallet {
     signer: any;
@@ -31,7 +32,7 @@ export class Wallet {
             to: null,
             value,
             data: bytecode,
-            address: this.signer.getAddress()
+            from: this.signer.getAddress()
         }, options)
 
         const [broadcastData, broadcastError] = await this.rpcProvider.sendRawTransaction(signedTx.signedRawTxHex())
@@ -68,7 +69,7 @@ export class Wallet {
             to: address,
             value,
             data: callData,
-            address: this.signer.getAddress()
+            from: this.signer.getAddress()
         }, options)
 
         const [broadcastData, broadcastError] = await this.rpcProvider.sendRawTransaction(signedTx.signedRawTxHex())
