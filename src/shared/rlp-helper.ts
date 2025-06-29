@@ -4,11 +4,13 @@
  */
 import { toBeHex, getBytes } from "ethers";
 
-export function RLPfrom(tx: any, options = { eip155: true }) {
-    const isSigned = "v" in tx && "r" in tx && "s" in tx;
 
+/**
+ * RLP encode an array of fields (already ordered for the transaction type).
+ */
+export function RLPencodeFields(fields: any[]) {
     const toHex = (val: any) => {
-        if (val === null || val === undefined) return "0x"; // treat null as empty (e.g., contract deployment)
+        if (val === null || val === undefined) return "0x";
         if (typeof val === "bigint" || typeof val === "number") {
             if (val === 0n || val === 0) return "0x";
             return toBeHex(val);
@@ -16,40 +18,6 @@ export function RLPfrom(tx: any, options = { eip155: true }) {
         if (typeof val === "string") return val;
         throw new Error(`Unsupported value type for RLP encoding: ${typeof val}`);
     };
-
-    const fields = isSigned
-        ? [
-            tx.nonce,
-            tx.gasPrice,
-            tx.gasLimit,
-            tx.to ?? null,
-            tx.value,
-            tx.data ?? "0x",
-            tx.v,
-            tx.r,
-            tx.s
-        ]
-        : options.eip155
-            ? [
-                tx.nonce,
-                tx.gasPrice,
-                tx.gasLimit,
-                tx.to ?? null,
-                tx.value,
-                tx.data ?? "0x",
-                tx.chainId,
-                "0x",
-                "0x"
-            ]
-            : [
-                tx.nonce,
-                tx.gasPrice,
-                tx.gasLimit,
-                tx.to ?? null,
-                tx.value,
-                tx.data ?? "0x"
-            ];
-
     const encodedFields = fields.map(toHex).map(rlpEncode);
     return rlpEncodeList(encodedFields);
 }

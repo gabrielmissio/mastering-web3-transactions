@@ -40,7 +40,7 @@ export class Wallet {
             throw broadcastError;
         }
 
-        const contractAddress =  computeContractAddress(this.signer.getAddress(), signedTx.toSignedTxObject().nonce)
+        const contractAddress =  computeContractAddress(this.signer.getAddress(), signedTx.nonce)
 
         return {
            ...broadcastData,

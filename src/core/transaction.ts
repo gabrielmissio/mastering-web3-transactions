@@ -1,6 +1,6 @@
 import { keccak256 } from "../shared/ecc-helper";
 import { isValidAddress } from "../shared/address-helper";
-import { RLPfrom, toHexString } from "../shared/rlp-helper";
+import { RLPencodeFields, toHexString } from "../shared/rlp-helper"; // <-- update import
 
 export class TransactionBuilder {
     signer: any;
@@ -65,38 +65,39 @@ export class TransactionBuilder {
             gasLimit,
             gasPrice,
         };
-    
-        const digest = keccak256(RLPfrom(unsignedLegacyTxObject, options));
+
+        // Use TransactionType0 to build RLP fields
+        const tx = new TransactionType0({ ...unsignedLegacyTxObject, eip155: options.eip155 });
+        const digest = keccak256(RLPencodeFields(tx.getUnsignedRLPFields())); // <-- use new encoder
         const { r, s, recovery, v: tempV } = await this.signer.signWithRecoverableECDSA(digest);
         const v = chainId * 2n + 35n + BigInt(recovery);
-    
-        const signedLegacyTxObject = {
-            ...unsignedLegacyTxObject,
-            r, s, v: options.eip155 ? v : tempV, // v is 27 or 28 for legacy transactions, or chainId * 2 + 35 + recovery for EIP-155
-        };
-    
+
         return new TransactionType0({
-            to: signedLegacyTxObject.to,
-            value: signedLegacyTxObject.value,
-            data: signedLegacyTxObject.data,
-            nonce: signedLegacyTxObject.nonce,
-            gasLimit: signedLegacyTxObject.gasLimit,
-            gasPrice: signedLegacyTxObject.gasPrice,
-            chainId: signedLegacyTxObject.chainId,
+            ...unsignedLegacyTxObject,
             signature: {
-                r: signedLegacyTxObject.r,
-                s: signedLegacyTxObject.s,
-                v: signedLegacyTxObject.v,
-                tempV, // for educational purposes
+                r,
+                s,
+                v: options.eip155 ? v : tempV,
+                recoveryParam: recovery,
+                tempV,
+                // recoveryParam: recovery, // for testing purposes
             },
             eip155: options.eip155,
         })
     }  
 }
 
+// TODO: Add support to Buffer / Hex string
+type Signature = {
+    r: string;
+    s: string;
+    v: number;
+    tempV?: number; // for educational purposes, not used in production
+    recoveryParam?: 0 | 1;
+};
+
 class Transaction {
-    eip155!: boolean;
-    signature: any;
+    signature: Signature;
 
     constructor({ signature }: any = {}) {
         if (signature && typeof signature !== "object") {
@@ -107,43 +108,44 @@ class Transaction {
         }
         this.signature = signature ?? null;
     }
-
-    toUnsignedTxObject() {
-        throw new Error("Method toUnsignedTxObject must be implemented by subclasses");
+    
+    // Remove eip155 from base class, and require subclasses to provide RLP fields
+    getUnsignedRLPFields(): any[] {
+        throw new Error("Method getUnsignedRLPFields must be implemented by subclasses");
     }
 
-    toSignedTxObject() {
-        if (!this.signature) throw new Error("Missing signature");
-        throw new Error("Method toSignedTxObject must be implemented by subclasses");
+    getSignedRLPFields(): any[] {
+        throw new Error("Method getSignedRLPFields must be implemented by subclasses");
     }
 
     unsignedHash() {
-        return keccak256(RLPfrom(this.toUnsignedTxObject(), { eip155: this.eip155 }));
+        return keccak256(RLPencodeFields(this.getUnsignedRLPFields()));
     }
 
     unsignedRawTxHex() {
-        return toHexString(RLPfrom(this.toUnsignedTxObject(), { eip155: this.eip155 }));
+        return toHexString(RLPencodeFields(this.getUnsignedRLPFields()));
     }
 
     signedHash() {
-        return keccak256(RLPfrom(this.toSignedTxObject(), { eip155: this.eip155 }));
+        return keccak256(RLPencodeFields(this.getSignedRLPFields()));
     }
 
     signedRawTxHex() {
-        return toHexString(RLPfrom(this.toSignedTxObject(), { eip155: this.eip155 }));
+        return toHexString(RLPencodeFields(this.getSignedRLPFields()));
     }
 }
 
 export class TransactionType0 extends Transaction {
-    to: string | null;
-    value: any
-    data: any
-    nonce: bigint;
-    gasLimit: bigint;
-    gasPrice: bigint;
-    chainId: bigint;
-    eip155: boolean;
+    #to: string | null;
+    #value: bigint;
+    #data: string;
+    #nonce: bigint;
+    #gasLimit: bigint;
+    #gasPrice: bigint;
+    #chainId: bigint;
 
+    // test / educational purposes only
+    eip155: boolean;
 
     constructor({
         to = null,
@@ -159,7 +161,6 @@ export class TransactionType0 extends Transaction {
         // TODO: Review what more properties we want to handle in the "Transaction" class
         super({ signature });
 
-        // validate address
         if (to && !isValidAddress(to)) {
             throw new Error(`Invalid "to": ${to}`);
         }
@@ -169,61 +170,102 @@ export class TransactionType0 extends Transaction {
         if (chainId && (typeof chainId !== "bigint" || chainId < 0n)) {
             throw new Error(`Invalid "chainId": ${chainId}`);
         }
-
-        // validate value
         if (typeof value !== "bigint" || value < 0n) {
             throw new Error(`Invalid "value": ${value}`);
         }
-
-        // validate data
         if (data && typeof data !== "string") {
             throw new Error(`Invalid "data": ${data}`);
         }
-
-        // validate nonce
         if (typeof nonce !== "bigint" || nonce < 0n) {
             throw new Error(`Invalid "nonce": ${nonce}`);
         }
-        
-        // validate gasLimit
         if (typeof gasLimit !== "bigint" || gasLimit < 21000n) {
             throw new Error(`Invalid "gasLimit": ${gasLimit}`);
         }
-
-        // validate gasPrice
         if (typeof gasPrice !== "bigint" || gasPrice < 0n) {
             throw new Error(`Invalid "gasPrice": ${gasPrice}`);
         }
 
-        // TODO: validate inputs
-        this.to = to;
-        this.value = value;
-        this.data = data;
-        this.nonce = nonce;
-        this.gasLimit = gasLimit;
-        this.gasPrice = gasPrice;
-        this.chainId = chainId;
+        // TODO: add "from" property (recovery from signature)
+
+        this.#to = to;
+        this.#value = value;
+        this.#data = data;
+        this.#nonce = nonce;
+        this.#gasLimit = gasLimit;
+        this.#gasPrice = gasPrice;
+        this.#chainId = chainId;
         this.eip155 = eip155;
+    }
+
+    get to() { return this.#to; }
+    get value() { return this.#value; }
+    get data() { return this.#data; }
+    get nonce() { return this.#nonce; }
+    get gasLimit() { return this.#gasLimit; }
+    get gasPrice() { return this.#gasPrice; }
+    get chainId() { return this.#chainId; }
+
+    // Provide RLP fields for encoder
+    getUnsignedRLPFields(): any[] {
+        if (this.eip155) {
+            return [
+                this.#nonce,
+                this.#gasPrice,
+                this.#gasLimit,
+                this.#to ?? null,
+                this.#value,
+                this.#data ?? "0x",
+                this.#chainId,
+                "0x",
+                "0x"
+            ];
+        } else {
+            return [
+                this.#nonce,
+                this.#gasPrice,
+                this.#gasLimit,
+                this.#to ?? null,
+                this.#value,
+                this.#data ?? "0x"
+            ];
+        }
+    }
+
+    getSignedRLPFields(): any[] {
+        return [
+            this.#nonce,
+            this.#gasPrice,
+            this.#gasLimit,
+            this.#to ?? null,
+            this.#value,
+            this.#data ?? "0x",
+            this.eip155 ? this.signature.v : this.signature.tempV,
+            this.signature.r,
+            this.signature.s
+        ];
     }
 
     toUnsignedTxObject() {
         return {
-            to: this.to,
-            value: this.value,
-            data: this.data,
-            nonce: this.nonce,
-            gasLimit: this.gasLimit,
-            gasPrice: this.gasPrice,
-            chainId: this.chainId,
+            to: this.#to,
+            value: this.#value,
+            data: this.#data,
+            nonce: this.#nonce,
+            gasLimit: this.#gasLimit,
+            gasPrice: this.#gasPrice,
+            chainId: this.#chainId,
         };
     }
 
     toSignedTxObject() {
         return {
             ...this.toUnsignedTxObject(),
-            r: this.signature.r,
-            s: this.signature.s,
-            v: this.eip155 ? this.signature.v : this.signature.tempV,
+            signature: {
+                r: this.signature.r,
+                s: this.signature.s,
+                v: this.eip155 ? this.signature.v : this.signature.tempV,
+            }
         };
     }
 }
