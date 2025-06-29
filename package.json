@@ -2,11 +2,10 @@
   "name": "mastering-web3-transactions",
   "version": "1.0.0",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint",
+    "test": "dotenvx run -- jest --detectOpenHandles",
     "bc:init": "anvil --gas-price 0 --base-fee 0",
-    "samples:counter": "dotenvx run -- ts-node samples/counter.ts",
-    "samples:tx-types": "dotenvx run -- ts-node samples/tx-types.ts"
+    "samples:counter": "dotenvx run -- ts-node samples/counter.ts"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.44.2",
@@ -14,6 +13,8 @@
     "@eslint/markdown": "^6.6.0",
     "eslint": "^9.30.0",
     "globals": "^16.2.0",
+    "jest": "^30.0.3",
+    "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.35.0"

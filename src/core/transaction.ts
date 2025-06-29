@@ -159,18 +159,42 @@ export class TransactionType0 extends Transaction {
         // TODO: Review what more properties we want to handle in the "Transaction" class
         super({ signature });
 
+        // validate address
         if (to && !isValidAddress(to)) {
-            throw new Error("Invalid \"to\" address");
+            throw new Error(`Invalid "to": ${to}`);
+        }
+
+        // validate chainId
+        // OBS: ChainId is optional for legacy + pre-EIP-155 transactions
+        if (chainId && (typeof chainId !== "bigint" || chainId < 0n)) {
+            throw new Error(`Invalid "chainId": ${chainId}`);
+        }
+
+        // validate value
+        if (typeof value !== "bigint" || value < 0n) {
+            throw new Error(`Invalid "value": ${value}`);
+        }
+
+        // validate data
+        if (data && typeof data !== "string") {
+            throw new Error(`Invalid "data": ${data}`);
         }
 
         // validate nonce
-        if (typeof nonce !== "bigint") {
-            throw new Error("Nonce must be a bigint");
-        }
-        if (nonce < 0n) {
-            throw new Error("Nonce cannot be negative");
+        if (typeof nonce !== "bigint" || nonce < 0n) {
+            throw new Error(`Invalid "nonce": ${nonce}`);
         }
         
+        // validate gasLimit
+        if (typeof gasLimit !== "bigint" || gasLimit < 21000n) {
+            throw new Error(`Invalid "gasLimit": ${gasLimit}`);
+        }
+
+        // validate gasPrice
+        if (typeof gasPrice !== "bigint" || gasPrice < 0n) {
+            throw new Error(`Invalid "gasPrice": ${gasPrice}`);
+        }
+
         // TODO: validate inputs
         this.to = to;
         this.value = value;
