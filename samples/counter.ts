@@ -6,6 +6,8 @@ import {
 } from "../src/shared/contract-helper";
 
 async function main(wallet = setupWallet()) {
+    console.log("Wallet address:", wallet.address)
+
     // Deploy a smart contract
     console.log("Deploying contract...");
     const contractDeployTx = await wallet.deployContract({

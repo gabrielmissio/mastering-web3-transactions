@@ -6,6 +6,7 @@ export class Wallet {
     txBuilder: any;
     rpcProvider: any;
     txOptions: any;
+    #address: string;
 
     constructor({
         signer,
@@ -25,6 +26,12 @@ export class Wallet {
             eip155: defaultTxOptions.eip155 ?? true,
             freeGas: defaultTxOptions.freeGas ?? false,
         }
+
+        this.#address = this.signer.getAddress()
+    }
+
+    get address(): string {
+        return this.#address
     }
 
     async deployContract({ bytecode, value }: any, options = this.txOptions) {

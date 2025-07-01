@@ -9,7 +9,7 @@ import {
 export function setupWallet(): Wallet {
     const rpcProvider = new JsonHttpProvider({ url: process.env.RPC_URL });
     const nonceManager = new SimpleNonceManager({ provider: rpcProvider });
-    // const signer = new SimpleSigner({ privateKey: process.env.PRIVATE_KEY });
+    // const signer = new SimpleSigner({ privateKey: process.env.PRIVATE_KEY }); // NOTE: A random private key will be created when env is not provided
     const signer = new SimpleSigner();
     const txBuilder = new TransactionBuilder({ rpcProvider, nonceManager, signer }); // review whether we need to pass the signer here
 

@@ -1,6 +1,11 @@
 import { SigningKey } from "ethers";
-import { getBytes, randomEOA } from "../shared/ecc-helper"
 import { Signer } from "./interfaces"
+import {
+    getBytes,
+    randomEOA,
+    calculatePublicKey,
+    calculateEthereumAddress,
+ } from "../shared/ecc-helper"
 
 export class SimpleSigner implements Signer {
     #address: string;
@@ -9,7 +14,10 @@ export class SimpleSigner implements Signer {
 
     constructor({ privateKey }: any = {}) {
         if (privateKey) {
-            throw new Error("Not implemented yet: Signer with private key");
+            // TODO: validate private key
+            this.#privateKey = privateKey
+            this.#publicKey = calculatePublicKey(this.#privateKey)
+            this.#address = calculateEthereumAddress(this.#publicKey)
         } else {
             const eoa = randomEOA();
             this.#address = eoa.address;
@@ -17,6 +25,10 @@ export class SimpleSigner implements Signer {
             this.#privateKey = eoa.privateKey;
         }
     }
+
+    // static async create() {
+    //     // load async data and instance new object...
+    // }
 
     getAddress() {
         return this.#address
