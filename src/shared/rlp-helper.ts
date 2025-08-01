@@ -9,16 +9,33 @@ import { toBeHex, getBytes } from "ethers";
  * RLP encode an array of fields (already ordered for the transaction type).
  */
 export function RLPencodeFields(fields: any[]) {
-    const toHex = (val: any) => {
-        if (val === null || val === undefined) return "0x";
-        if (typeof val === "bigint" || typeof val === "number") {
-            if (val === 0n || val === 0) return "0x";
-            return toBeHex(val);
+    const processField = (val: any): Uint8Array => {
+        if (val === null || val === undefined) {
+            return rlpEncode("0x");
         }
-        if (typeof val === "string") return val;
+        if (typeof val === "bigint" || typeof val === "number") {
+            if (val === 0n || val === 0) {
+                return rlpEncode("0x");
+            }
+            return rlpEncode(toBeHex(val));
+        }
+        if (typeof val === "string") {
+            return rlpEncode(val);
+        }
+        if (Array.isArray(val)) {
+            // Handle arrays (like access lists)
+            if (val.length === 0) {
+                // Empty array is encoded as an empty RLP list
+                return Uint8Array.from([0xc0]);
+            }
+            // For non-empty arrays, we'd need more complex handling
+            const encodedItems = val.map(processField);
+            return rlpEncodeList(encodedItems);
+        }
         throw new Error(`Unsupported value type for RLP encoding: ${typeof val}`);
     };
-    const encodedFields = fields.map(toHex).map(rlpEncode);
+    
+    const encodedFields = fields.map(processField);
     return rlpEncodeList(encodedFields);
 }
 

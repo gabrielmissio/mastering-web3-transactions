@@ -102,7 +102,77 @@ export class TransactionBuilder {
             },
             eip155: options.eip155,
         })
-    }  
+    }
+
+    async buildType2(
+        payload: {
+            to?: string | null; // null for contract deployment
+            value?: bigint; // in wei
+            data?: string; // hex string, default: "0x"
+            from: string; // address of the sender, used for nonce management
+            maxFeePerGas?: bigint; // maximum fee per gas
+            maxPriorityFeePerGas?: bigint; // maximum priority fee per gas (tip)
+        },
+        options: TxOptions = {
+            eip155: true,
+            freeGas: false,
+        }
+    ): Promise<TransactionType2> {
+        if (!payload || typeof payload !== "object") {
+            throw new Error("Invalid transaction data");
+        }
+        const { to, value, data, from, maxFeePerGas, maxPriorityFeePerGas } = payload;
+
+        const isSimpleTx = to && !data;
+
+        const [nonce, { chainId }, feeData, gasLimit] = await Promise.all([
+            this.#nonceManager.getCurrentNonce(from),
+            this.#rpcProvider.getNetworkInfo().then(([data, error]: [any, any]) => {
+                if (error) throw error;
+                return data;
+            }),
+            options.freeGas ? { maxFeePerGas: 0n, maxPriorityFeePerGas: 0n } : 
+                this.#rpcProvider.estimateFeeData().then(([data, error]: [any, any]) => {
+                    if (error) throw error;
+                    return data;
+                }),
+            isSimpleTx ? 21000n : this.#rpcProvider.estimateGasUsage({ from, to, value, data }).then(([data, error]: [any, any]) => {
+                if (error) throw error;
+                return data;
+            })
+        ]);
+
+        const unsignedType2TxObject = {
+            chainId,
+            to: to ?? null, // null for contract deployment
+            data: data ?? "0x",
+            value: value ?? 0n, // in wei
+            nonce: BigInt(nonce),
+            gasLimit,
+            maxFeePerGas: maxFeePerGas ?? feeData.maxFeePerGas,
+            maxPriorityFeePerGas: maxPriorityFeePerGas ?? feeData.maxPriorityFeePerGas,
+        };
+
+        const tx = new TransactionType2(unsignedType2TxObject);
+
+        // EIP-1559 transactions use a different signing format
+        const digest = keccak256(Buffer.concat([
+            Buffer.from([0x02]), // Transaction type prefix
+            RLPencodeFields(tx.getUnsignedRLPFields())
+        ]));
+
+        const { r, s, recovery } = await this.#signer.signWithRecoverableECDSA(digest);
+
+        return new TransactionType2({
+            ...unsignedType2TxObject,
+            signature: {
+                r,
+                s,
+                v: recovery,
+                recoveryParam: recovery,
+            },
+        });
+    }
 }
 
 // TODO: Add support to Buffer / Hex string
@@ -121,7 +191,7 @@ class Transaction {
         if (signature && typeof signature !== "object") {
             throw new Error("Invalid signature format");
         }
-        if (signature && (!signature.r || !signature.s || !signature.v)) {
+        if (signature && (!signature.r || !signature.s || (signature.v === undefined && signature.v !== 0))) {
             throw new Error("Signature must contain r, s, and v");
         }
         this.signature = signature ?? null;
@@ -283,6 +353,140 @@ export class TransactionType0 extends Transaction {
                 r: this.signature.r,
                 s: this.signature.s,
                 v: this.eip155 ? this.signature.v : this.signature.tempV,
+            }
+        };
+    }
+}
+
+export class TransactionType2 extends Transaction {
+    #to: string | null;
+    #value: bigint;
+    #data: string;
+    #nonce: bigint;
+    #gasLimit: bigint;
+    #maxFeePerGas: bigint;
+    #maxPriorityFeePerGas: bigint;
+    #chainId: bigint;
+
+    constructor({
+        to = null,
+        value = 0n,
+        data = "0x",
+        nonce,
+        gasLimit,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+        chainId,
+        signature = null,
+    }: any = {}) {
+        super({ signature });
+
+        if (to && !isValidAddress(to)) {
+            throw new Error(`Invalid "to": ${to}`);
+        }
+
+        // validate chainId
+        // OBS: ChainId is optional for legacy + pre-EIP-155 transactions
+        if (chainId && (typeof chainId !== "bigint" || chainId < 0n)) {
+            throw new Error(`Invalid "chainId": ${chainId}`);
+        }
+        if (typeof value !== "bigint" || value < 0n) {
+            throw new Error(`Invalid "value": ${value}`);
+        }
+        if (data && typeof data !== "string") {
+            throw new Error(`Invalid "data": ${data}`);
+        }
+        if (typeof nonce !== "bigint" || nonce < 0n) {
+            throw new Error(`Invalid "nonce": ${nonce}`);
+        }
+        if (typeof gasLimit !== "bigint" || gasLimit < 21000n) {
+            throw new Error(`Invalid "gasLimit": ${gasLimit}`);
+        }
+        if (typeof maxFeePerGas !== "bigint" || maxFeePerGas < 0n) {
+            throw new Error(`Invalid "maxFeePerGas": ${maxFeePerGas}`);
+        }
+        if (typeof maxPriorityFeePerGas !== "bigint" || maxPriorityFeePerGas < 0n) {
+            throw new Error(`Invalid "maxPriorityFeePerGas": ${maxPriorityFeePerGas}`);
+        }
+
+        this.#to = to;
+        this.#value = value;
+        this.#data = data;
+        this.#nonce = nonce;
+        this.#gasLimit = gasLimit;
+        this.#maxFeePerGas = maxFeePerGas;
+        this.#maxPriorityFeePerGas = maxPriorityFeePerGas;
+        this.#chainId = chainId;
+    }
+
+    get to() { return this.#to; }
+    get value() { return this.#value; }
+    get data() { return this.#data; }
+    get nonce() { return this.#nonce; }
+    get gasLimit() { return this.#gasLimit; }
+    get maxFeePerGas() { return this.#maxFeePerGas; }
+    get maxPriorityFeePerGas() { return this.#maxPriorityFeePerGas; }
+    get chainId() { return this.#chainId; }
+
+    // Provide RLP fields for encoder
+    getUnsignedRLPFields(): any[] {
+        return [
+            this.#chainId,
+            this.#nonce,
+            this.#maxPriorityFeePerGas,
+            this.#maxFeePerGas,
+            this.#gasLimit,
+            this.#to ?? null,
+            this.#value,
+            this.#data ?? "0x",
+            [] // accessList (empty for basic transactions)
+        ];
+    }
+
+    getSignedRLPFields(): any[] {
+        return [
+            this.#chainId,
+            this.#nonce,
+            this.#maxPriorityFeePerGas,
+            this.#maxFeePerGas,
+            this.#gasLimit,
+            this.#to ?? null,
+            this.#value,
+            this.#data ?? "0x",
+            [], // accessList (empty for basic transactions)
+            this.signature.v, // yParity
+            this.signature.r,
+            this.signature.s
+        ];
+    }
+
+    // Override signedRawTxHex for EIP-1559 transactions
+    signedRawTxHex() {
+        const rlpEncoded = RLPencodeFields(this.getSignedRLPFields());
+        // EIP-1559 transactions are prefixed with 0x02
+        return "0x02" + toHexString(rlpEncoded).slice(2);
+    }
+
+    toUnsignedTxObject() {
+        return {
+            to: this.#to,
+            value: this.#value,
+            data: this.#data,
+            nonce: this.#nonce,
+            gasLimit: this.#gasLimit,
+            maxFeePerGas: this.#maxFeePerGas,
+            maxPriorityFeePerGas: this.#maxPriorityFeePerGas,
+            chainId: this.#chainId,
+        };
+    }
+
+    toSignedTxObject() {
+        return {
+            ...this.toUnsignedTxObject(),
+            signature: {
+                r: this.signature.r,
+                s: this.signature.s,
+                v: this.signature.v, // yParity for EIP-1559
             }
         };
     }

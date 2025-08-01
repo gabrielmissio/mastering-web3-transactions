@@ -35,7 +35,7 @@ export class Wallet {
     }
 
     async deployContract({ bytecode, value }: any, options = this.txOptions) {
-        const signedTx = await this.txBuilder.buildType0({
+        const signedTx = await this.txBuilder.buildType2({
             to: null,
             value,
             data: bytecode,
@@ -72,7 +72,7 @@ export class Wallet {
     }
 
     async sendContractTransaction({ address, callData, value }: any, options = this.txOptions) {
-        const signedTx = await this.txBuilder.buildType0({
+        const signedTx = await this.txBuilder.buildType2({
             to: address,
             value,
             data: callData,

@@ -133,4 +133,26 @@ export class JsonHttpProvider implements RpcProvider {
             return [null, error];
         }
     }
+
+    async estimateFeeData(): Promise<any> {
+        try {
+            // For EIP-1559 networks, we need to fetch both base fee and priority fee
+            // For simplicity, we'll use eth_gasPrice as fallback if eth_feeHistory is not available
+            const gasPrice = await this.request("eth_gasPrice", []);
+            const gasPriceBigInt = BigInt(gasPrice);
+
+            // Conservative estimates based on current gas price
+            // In a real implementation, you'd use eth_feeHistory or eth_maxPriorityFeePerGas
+            const maxPriorityFeePerGas = gasPriceBigInt / 10n; // 10% of gas price as priority fee
+            const maxFeePerGas = gasPriceBigInt + maxPriorityFeePerGas; // gas price + priority fee
+
+            return [{
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+            }, null];
+        } catch (error) {
+            console.error("Error estimating fee data:", error);
+            return [null, error];
+        }
+    }
 }

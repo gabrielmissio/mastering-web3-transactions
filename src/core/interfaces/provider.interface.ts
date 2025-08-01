@@ -7,4 +7,5 @@ export interface RpcProvider {
     sendRawTransaction(signedRawTx: string): Promise<[any, Error | null]>;
     estimateGasPrice(): Promise<[any, Error | null]>;
     estimateGasUsage(args: any): Promise<[any, Error | null]>;
+    estimateFeeData(): Promise<[any, Error | null]>;
 }
