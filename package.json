@@ -5,7 +5,9 @@
     "lint": "eslint",
     "test": "dotenvx run -- jest --detectOpenHandles",
     "bc:init": "anvil --gas-price 0 --base-fee 0",
-    "samples:counter": "dotenvx run -- ts-node samples/counter.ts"
+    "samples:counter": "dotenvx run -- ts-node samples/counter.ts",
+    "samples:sponsored-7702": "dotenvx run -- ts-node samples/sponsored-7702.ts",
+    "transaction": "dotenvx run -- ts-node samples/transaction.ts"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.44.2",
